@@ -1,8 +1,12 @@
 [Desktop Entry]
+Version=1.0
 Type=Application
 Name=Ollama Desktop Chat
-Comment=Local desktop chat interface for Ollama models
-Exec=OllamaDesktopChat
+Comment=Local AI Chat Client
+# This uses the virtual environment's Python directly
+Exec=/home/luka/Desktop/ollama_desktop_chat/.venv/bin/python /home/luka/Desktop/ollama_desktop_chat/main.py
+# This ensures it runs from the correct folder
+Path=/home/luka/Desktop/ollama_desktop_chat
+Icon=utilities-terminal
 Terminal=false
-Categories=Utility;Development;
-StartupNotify=true
+Categories=Utility;Chat;

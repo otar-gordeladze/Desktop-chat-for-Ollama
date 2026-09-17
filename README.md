@@ -4,6 +4,11 @@ A fully local Linux desktop chat client for Ollama, written in Python and PySide
 
 Target platform: **Ubuntu 24.04**.
 
+
+#to make launch files run this commands
+chmod +x install.sh
+./install.sh
+
 ## Features
 
 - Fully local desktop GUI; no cloud service is required by this app.
