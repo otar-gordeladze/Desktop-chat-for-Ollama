@@ -1,0 +1,1 @@
+"""Ollama Desktop Chat package."""

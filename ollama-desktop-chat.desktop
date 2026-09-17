@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ollama Desktop Chat
+Comment=Local desktop chat interface for Ollama models
+Exec=OllamaDesktopChat
+Terminal=false
+Categories=Utility;Development;
+StartupNotify=true

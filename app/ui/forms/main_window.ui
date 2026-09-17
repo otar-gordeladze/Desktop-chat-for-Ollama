@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry"><rect><x>0</x><y>0</y><width>1180</width><height>780</height></rect></property>
+  <property name="windowTitle"><string>Ollama Desktop Chat</string></property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing"><number>0</number></property>
+    <property name="leftMargin"><number>0</number></property>
+    <property name="topMargin"><number>0</number></property>
+    <property name="rightMargin"><number>0</number></property>
+    <property name="bottomMargin"><number>0</number></property>
+    <item>
+     <widget class="QSplitter" name="mainSplitter">
+      <property name="orientation"><enum>Qt::Horizontal</enum></property>
+      <widget class="QWidget" name="sidebar">
+       <layout class="QVBoxLayout" name="sidebarLayout">
+        <item><widget class="QPushButton" name="newChatButton"><property name="text"><string>＋ New chat</string></property></widget></item>
+        <item><widget class="QListWidget" name="chatList"><property name="contextMenuPolicy"><enum>Qt::CustomContextMenu</enum></property></widget></item>
+        <item><widget class="QPushButton" name="settingsButton"><property name="text"><string>⚙ Settings</string></property></widget></item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="chatPanel">
+       <layout class="QVBoxLayout" name="chatPanelLayout">
+        <item>
+         <layout class="QHBoxLayout" name="headerLayout">
+          <item><widget class="QLabel" name="chatTitleLabel"><property name="text"><string>Chat</string></property><property name="styleSheet"><string>font-size: 18px; font-weight: 600;</string></property></widget></item>
+          <item><spacer name="headerSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+          <item><widget class="QLabel" name="modelLabel"><property name="text"><string>Model:</string></property></widget></item>
+          <item><widget class="QComboBox" name="modelCombo"><property name="minimumSize"><size><width>220</width><height>0</height></size></property></widget></item>
+          <item><widget class="QPushButton" name="refreshModelsButton"><property name="text"><string>↻</string></property><property name="toolTip"><string>Refresh Ollama models</string></property></widget></item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QScrollArea" name="messageScrollArea">
+          <property name="widgetResizable"><bool>true</bool></property>
+          <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+          <widget class="QWidget" name="messagesContainer">
+           <layout class="QVBoxLayout" name="messagesLayout">
+            <property name="alignment"><set>Qt::AlignTop</set></property>
+            <item><spacer name="messagesBottomSpacer"><property name="orientation"><enum>Qt::Vertical</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property></spacer></item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+        <item><widget class="QLabel" name="attachmentLabel"><property name="text"><string></string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+        <item>
+         <layout class="QHBoxLayout" name="composerLayout">
+          <item><widget class="QPushButton" name="attachButton"><property name="text"><string>📎</string></property><property name="toolTip"><string>Attach files or images</string></property></widget></item>
+          <item><widget class="QTextEdit" name="messageEdit"><property name="maximumHeight"><number>120</number></property><property name="placeholderText"><string>Message Ollama…</string></property></widget></item>
+          <item><widget class="QPushButton" name="sendButton"><property name="text"><string>Send</string></property><property name="objectName"><string>sendButton</string></property></widget></item>
+         </layout>
+        </item>
+        <item><widget class="QLabel" name="statusLabel"><property name="text"><string>Ready</string></property></widget></item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

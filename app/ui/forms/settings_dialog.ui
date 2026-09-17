@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingsDialog</class>
+ <widget class="QDialog" name="SettingsDialog">
+  <property name="windowTitle"><string>Settings</string></property>
+  <property name="minimumSize"><size><width>520</width><height>360</height></size></property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item><widget class="QLabel" name="titleLabel"><property name="text"><string>Global settings</string></property><property name="styleSheet"><string>font-size: 18px; font-weight: 600;</string></property></widget></item>
+   <item>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0"><widget class="QLabel" name="defaultModelLabel"><property name="text"><string>Default model</string></property></widget></item>
+     <item row="0" column="1"><widget class="QComboBox" name="defaultModelCombo"><property name="editable"><bool>true</bool></property></widget></item>
+     <item row="1" column="0"><widget class="QLabel" name="themeLabel"><property name="text"><string>Theme</string></property></widget></item>
+     <item row="1" column="1"><widget class="QComboBox" name="themeCombo"><item><property name="text"><string>dark</string></property></item><item><property name="text"><string>light</string></property></item></widget></item>
+     <item row="2" column="0"><widget class="QLabel" name="urlLabel"><property name="text"><string>Ollama base URL</string></property></widget></item>
+     <item row="2" column="1"><widget class="QLineEdit" name="urlEdit"><property name="placeholderText"><string>http://127.0.0.1:11434</string></property></widget></item>
+     <item row="3" column="0"><widget class="QLabel" name="memoryLabel"><property name="text"><string>Memory character budget</string></property></widget></item>
+     <item row="3" column="1"><widget class="QSpinBox" name="memorySpin"><property name="minimum"><number>2000</number></property><property name="maximum"><number>1000000</number></property><property name="singleStep"><number>2000</number></property></widget></item>
+     <item row="4" column="0"><widget class="QLabel" name="temperatureLabel"><property name="text"><string>Temperature</string></property></widget></item>
+     <item row="4" column="1"><widget class="QDoubleSpinBox" name="temperatureSpin"><property name="minimum"><double>0.000000000000000</double></property><property name="maximum"><double>2.000000000000000</double></property><property name="singleStep"><double>0.100000000000000</double></property></widget></item>
+    </layout>
+   </item>
+   <item><spacer name="verticalSpacer"><property name="orientation"><enum>Qt::Vertical</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property></spacer></item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox"><property name="standardButtons"><set>QDialogButtonBox::Cancel|QDialogButtonBox::Save</set></property></widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

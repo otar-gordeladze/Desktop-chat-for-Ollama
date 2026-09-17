@@ -1,0 +1,35 @@
+Installation on Ubuntu 24.04
+
+After extracting the ZIP:
+
+cd ollama_desktop_chat
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+Make sure Ollama is installed and running, then pull a model:
+
+ollama pull gemma3
+
+Run the application:
+
+python main.py
+
+The default Ollama address is:
+
+http://127.0.0.1:11434
+
+and can be changed from Settings.
+
+requirements.txt
+
+The generated dependency file contains:
+
+PySide6>=6.8,<7
+requests>=2.32,<3
+pypdf>=5.0,<7
+
+There is deliberately no unnecessary framework dependency.
