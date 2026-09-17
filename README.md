@@ -147,7 +147,7 @@ The file is stored and shown as an attachment, but its contents are not injected
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip
+sudo apt install -y python3 python3-venv python3-pip libxcb-cursor0
 ```
 
 ### 2. Install and start Ollama
