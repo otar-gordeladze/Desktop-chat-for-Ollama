@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, Qt, Slot
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -86,6 +86,8 @@ class MainWindowController(QObject):
 
         self._connect_signals()
         self._set_initial_sizes()
+        self.current_font_size = 14
+        self._setup_zoom()
 
     def _connect_signals(self) -> None:
         self.new_chat_button.clicked.connect(self.create_chat)
@@ -411,4 +413,40 @@ class MainWindowController(QObject):
         self.storage.save_settings(self.settings)
         self.ollama.set_base_url(self.settings.ollama_base_url)
         self.apply_theme_callback(self.settings.theme)
+        self._apply_zoom()
         self.refresh_models()
+        
+        
+    def _setup_zoom(self) -> None:
+        QShortcut(QKeySequence.ZoomIn, self.window, self.zoom_in)
+        QShortcut(QKeySequence.ZoomOut, self.window, self.zoom_out)
+        QShortcut("Ctrl+0", self.window, self.reset_zoom)
+        
+        # Intercept scroll wheel on the chat area
+        self._original_wheel_event = self.scroll_area.wheelEvent
+        self.scroll_area.wheelEvent = self._handle_scroll_wheel
+
+    def _handle_scroll_wheel(self, event) -> None:
+        if event.modifiers() == Qt.ControlModifier:
+            if event.angleDelta().y() > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
+        else:
+            self._original_wheel_event(event)
+
+    def zoom_in(self) -> None:
+        self.current_font_size = min(36, self.current_font_size + 1)
+        self._apply_zoom()
+
+    def zoom_out(self) -> None:
+        self.current_font_size = max(10, self.current_font_size - 1)
+        self._apply_zoom()
+
+    def reset_zoom(self) -> None:
+        self.current_font_size = 14
+        self._apply_zoom()
+
+    def _apply_zoom(self) -> None:
+        from app.ui.theme import stylesheet
+        self.window.setStyleSheet(stylesheet(self.settings.theme, self.current_font_size))
