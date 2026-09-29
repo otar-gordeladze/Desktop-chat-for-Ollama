@@ -23,7 +23,7 @@ class MessageWidget(QFrame):
         self.content = QLabel()
         self.content.setWordWrap(True)
         # Disabled text interaction during streaming to prevent Qt timer crashes
-        self.content.setTextFormat(Qt.PlainText)
+        self.content.setTextFormat(Qt.MarkdownText)
         self.content.setTextInteractionFlags(Qt.NoTextInteraction)
         self.content.setOpenExternalLinks(True)
         self.set_content(message.content)
@@ -37,7 +37,9 @@ class MessageWidget(QFrame):
             layout.addWidget(attachment_label)
 
     def set_content(self, text: str) -> None:
-        self.content.setText(text or "...")
+        # Escape brackets so <think> tags stay visible, while allowing Markdown to render
+        safe_text = text.replace("<", "&lt;").replace(">", "&gt;") if text else "..."
+        self.content.setText(safe_text)
         self.update()
 
     def enable_selection(self) -> None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QThread, Qt, Slot
+from PySide6.QtCore import QObject, QThread, Qt, Slot, QEvent
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -88,6 +88,7 @@ class MainWindowController(QObject):
         self._set_initial_sizes()
         self.current_font_size = 14
         self._setup_zoom()
+        self.message_edit.installEventFilter(self)
 
     def _connect_signals(self) -> None:
         self.new_chat_button.clicked.connect(self.create_chat)
@@ -450,3 +451,16 @@ class MainWindowController(QObject):
     def _apply_zoom(self) -> None:
         from app.ui.theme import stylesheet
         self.window.setStyleSheet(stylesheet(self.settings.theme, self.current_font_size))
+
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched == self.message_edit and event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+                if event.modifiers() & Qt.ShiftModifier:
+                    # Allow Shift+Enter to create a new line normally
+                    return False
+                else:
+                    # Enter alone sends the message
+                    self.send_message()
+                    return True # Block the default new-line behavior
+        return super().eventFilter(watched, event)
