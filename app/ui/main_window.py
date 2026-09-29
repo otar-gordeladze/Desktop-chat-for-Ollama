@@ -267,7 +267,16 @@ class MainWindowController(QObject):
         self.attachment_label.setText("Attached: " + ", ".join(a.original_name for a in self.pending_attachments))
 
     def send_message(self) -> None:
-        if not self.current_chat or (self._chat_thread and self._chat_thread.isRunning()):
+        # 1. If currently generating, act as a STOP button
+        if self._chat_thread and self._chat_thread.isRunning():
+            if self._chat_worker:
+                self._chat_worker.stop()
+                self.send_button.setEnabled(False)
+                self.send_button.setText("Stopping…")
+            return
+
+        # 2. Otherwise, act as a normal SEND button
+        if not self.current_chat:
             return
 
         if self._chat_worker:
@@ -278,6 +287,7 @@ class MainWindowController(QObject):
             self._chat_worker.stop()
             
         raw_text = self.message_edit.toPlainText().strip()
+
         if not raw_text and not self.pending_attachments:
             return
 
@@ -384,7 +394,14 @@ class MainWindowController(QObject):
         self._chat_thread = None
 
     def _set_generating(self, generating: bool) -> None:
-        self.send_button.setEnabled(not generating)
+        if generating:
+            self.send_button.setText("Stop")
+            self.send_button.setStyleSheet("background: #d9534f; color: white; font-weight: 600;")
+        else:
+            self.send_button.setText("Send")
+            self.send_button.setStyleSheet("")
+            self.send_button.setEnabled(True)
+
         self.chat_list.setEnabled(not generating)
         self.new_chat_button.setEnabled(not generating)
         self.model_combo.setEnabled(not generating)
@@ -464,10 +481,10 @@ class MainWindowController(QObject):
         if watched == self.message_edit and event.type() == QEvent.KeyPress:
             if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
                 if event.modifiers() & Qt.ShiftModifier:
-                    # Allow Shift+Enter to create a new line normally
                     return False
                 else:
-                    # Enter alone sends the message
-                    self.send_message()
-                    return True # Block the default new-line behavior
+                    # Only allow Enter to send if we are NOT currently generating
+                    if not (self._chat_thread and self._chat_thread.isRunning()):
+                        self.send_message()
+                    return True
         return super().eventFilter(watched, event)
