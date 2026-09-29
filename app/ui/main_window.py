@@ -335,13 +335,20 @@ class MainWindowController(QObject):
         w = getattr(self, "_assistant_widget", None)
         if w is not None:
             try:
+                # Check if the user is at the bottom BEFORE updating the text
+                sb = self.scroll_area.verticalScrollBar()
+                is_at_bottom = sb.value() >= sb.maximum() - 15  # 15px threshold allows for smooth tracking
+
                 w.set_content(self._stream_text)
-                self._scroll_to_bottom()
-                # Force Qt to paint the UI immediately now that we are safely on the main thread
+                
+                # Only force the scrollbar down if they were already at the bottom
+                if is_at_bottom:
+                    self._scroll_to_bottom()
+                    
+                # Force Qt to paint the UI immediately
                 QApplication.processEvents()
             except RuntimeError:
                 self._assistant_widget = None
-
     @Slot(str)
     def _on_stream_finished(self, final_text: str) -> None:
         text = final_text or self._stream_text
