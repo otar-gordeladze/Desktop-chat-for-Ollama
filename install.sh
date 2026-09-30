@@ -39,9 +39,9 @@ Version=1.0
 Type=Application
 Name=Ollama Desktop Chat
 Comment=Local AI Chat Client
-Exec=$APP_DIR/.venv/bin/python $APP_DIR/main.py
-Path=$APP_DIR
-Icon=$APP_DIR/icon.jpeg
+Exec=ollama/Desktop-chat-for-Ollama/.venv/bin/python ollama/Desktop-chat-for-Ollama/main.py
+Path=ollama/Desktop-chat-for-Ollama
+Icon=ollama/Desktop-chat-for-Ollama/icon.jpeg
 Terminal=false
 Categories=Utility;Chat;
 EOF
