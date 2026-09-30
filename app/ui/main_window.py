@@ -1,10 +1,11 @@
 """Main desktop window controller."""
+import os
 from __future__ import annotations
 
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, Qt, Slot, QEvent
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QKeySequence, QShortcut, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -72,6 +73,8 @@ class MainWindowController(QObject):
         self.new_chat_button = self.window.findChild(QPushButton, "newChatButton")
         self.settings_button = self.window.findChild(QPushButton, "settingsButton")
         self.model_combo = self.window.findChild(QComboBox, "modelCombo")
+        icon_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "icon.jpeg"))
+        self.window.setWindowIcon(QIcon(icon_path))
         self.refresh_models_button = self.window.findChild(QPushButton, "refreshModelsButton")
         self.title_label = self.window.findChild(QLabel, "chatTitleLabel")
         self.message_edit = self.window.findChild(QTextEdit, "messageEdit")

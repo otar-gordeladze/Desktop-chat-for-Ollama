@@ -41,7 +41,7 @@ Name=Ollama Desktop Chat
 Comment=Local AI Chat Client
 Exec=$APP_DIR/.venv/bin/python $APP_DIR/main.py
 Path=$APP_DIR
-Icon=utilities-terminal
+Icon=$APP_DIR/icon.jpeg
 Terminal=false
 Categories=Utility;Chat;
 EOF
