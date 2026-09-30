@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-
-
 from pathlib import Path
 import os
 from PySide6.QtCore import QObject, QThread, Qt, Slot, QEvent
@@ -60,7 +58,9 @@ class MainWindowController(QObject):
         self.ollama = ollama
         self.settings = settings
         self.apply_theme_callback = apply_theme_callback
+        
         self.current_chat: Chat | None = None
+        self._generating_chat_id: int | None = None  # Tracks which chat is currently generating in background
         self.pending_attachments: list[Attachment] = []
         self.models: list[str] = []
         self._model_thread: QThread | None = None
@@ -157,7 +157,20 @@ class MainWindowController(QObject):
         self._sync_model_combo(chat.model)
         self.pending_attachments.clear()
         self._update_attachment_label()
+        
+        # Render the messages for the newly selected chat
         self._render_messages(self.storage.list_messages(chat.id))
+
+        # Re-bind streaming widget if returning to the generating chat
+        if self._generating_chat_id == chat.id and self.messages_layout.count() > 1:
+            item = self.messages_layout.itemAt(self.messages_layout.count() - 2)
+            if item and item.widget():
+                w = item.widget()
+                if isinstance(w, MessageWidget):
+                    self._assistant_widget = w
+                    self._assistant_widget.set_content(self._stream_text)
+        else:
+            self._assistant_widget = None
 
     def _chat_context_menu(self, pos) -> None:
         item = self.chat_list.itemAt(pos)
@@ -296,6 +309,8 @@ class MainWindowController(QObject):
         if not raw_text and not self.pending_attachments:
             return
 
+        self._generating_chat_id = self.current_chat.id
+
         display_text = raw_text or "[Attachments]"
         attachments = list(self.pending_attachments)
         prompt_text = self.chat_manager.augment_user_content(display_text, attachments)
@@ -347,35 +362,41 @@ class MainWindowController(QObject):
     @Slot(str)
     def _on_stream_chunk(self, chunk: str) -> None:
         self._stream_text += chunk
-        w = getattr(self, "_assistant_widget", None)
-        if w is not None:
-            try:
-                # Check if the user is at the bottom BEFORE updating the text
-                sb = self.scroll_area.verticalScrollBar()
-                is_at_bottom = sb.value() >= sb.maximum() - 15  # 15px threshold allows for smooth tracking
+        # Only update the visible widget if looking at the generating chat
+        if self.current_chat and self.current_chat.id == self._generating_chat_id:
+            w = getattr(self, "_assistant_widget", None)
+            if w is not None:
+                try:
+                    sb = self.scroll_area.verticalScrollBar()
+                    is_at_bottom = sb.value() >= sb.maximum() - 15
 
-                w.set_content(self._stream_text)
-                
-                # Only force the scrollbar down if they were already at the bottom
-                if is_at_bottom:
-                    self._scroll_to_bottom()
+                    w.set_content(self._stream_text)
                     
-                # Force Qt to paint the UI immediately
-                QApplication.processEvents()
-            except RuntimeError:
-                self._assistant_widget = None
+                    if is_at_bottom:
+                        self._scroll_to_bottom()
+                        
+                    QApplication.processEvents()
+                except RuntimeError:
+                    self._assistant_widget = None
+
     @Slot(str)
     def _on_stream_finished(self, final_text: str) -> None:
         text = final_text or self._stream_text
         if self._assistant_message:
             self.storage.update_message_content(self._assistant_message.id, text)
             
-        w = getattr(self, "_assistant_widget", None)
-        if w is not None:
-            w.enable_selection() # Re-enable text selection when done
+        if self.current_chat and self.current_chat.id == self._generating_chat_id:
+            w = getattr(self, "_assistant_widget", None)
+            if w is not None:
+                try:
+                    w.set_content(text)
+                    w.enable_selection()
+                except RuntimeError:
+                    pass
             
         self.status_label.setText("Ready")
         self._set_generating(False)
+        self._generating_chat_id = None
         self._chat_worker = None
         self._assistant_message = None
         self.message_edit.setFocus()
@@ -385,12 +406,17 @@ class MainWindowController(QObject):
         failure_text = f"[Error: {error}]"
         if self._assistant_message:
             self.storage.update_message_content(self._assistant_message.id, failure_text)
-        if self._assistant_widget:
-            self._assistant_widget.set_content(failure_text)
-            self._assistant_widget.enable_selection()
+        if self.current_chat and self.current_chat.id == self._generating_chat_id:
+            if self._assistant_widget:
+                try:
+                    self._assistant_widget.set_content(failure_text)
+                    self._assistant_widget.enable_selection()
+                except RuntimeError:
+                    pass
             
         self.status_label.setText("Request failed")
         self._set_generating(False)
+        self._generating_chat_id = None
         self._chat_worker = None
         self._assistant_message = None
         QMessageBox.warning(self.window, "Ollama error", error)
@@ -407,7 +433,7 @@ class MainWindowController(QObject):
             self.send_button.setStyleSheet("")
             self.send_button.setEnabled(True)
 
-        self.chat_list.setEnabled(not generating)
+        self.chat_list.setEnabled(True)  # Allow navigating between chats during generation!
         self.new_chat_button.setEnabled(not generating)
         self.model_combo.setEnabled(not generating)
         self.refresh_models_button.setEnabled(not generating)
@@ -422,7 +448,7 @@ class MainWindowController(QObject):
                 widget.deleteLater()
         for message in messages:
             w = self._append_message_widget(message)
-            w.enable_selection() # Ensure historical messages can be selected
+            w.enable_selection()
         self._scroll_to_bottom()
 
     def _append_message_widget(self, message: Message) -> MessageWidget:
@@ -445,8 +471,7 @@ class MainWindowController(QObject):
         self.apply_theme_callback(self.settings.theme)
         self._apply_zoom()
         self.refresh_models()
-        
-        
+
     def _setup_zoom(self) -> None:
         QShortcut(QKeySequence.ZoomIn, self.window, self.zoom_in)
         QShortcut(QKeySequence.ZoomOut, self.window, self.zoom_out)
@@ -481,14 +506,13 @@ class MainWindowController(QObject):
         from app.ui.theme import stylesheet
         self.window.setStyleSheet(stylesheet(self.settings.theme, self.current_font_size))
 
-
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched == self.message_edit and event.type() == QEvent.KeyPress:
-            if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter):
                 if event.modifiers() & Qt.ShiftModifier:
                     return False
                 else:
-                    # Only allow Enter to send if we are NOT currently generating
+                    # Only allow Enter to send if not currently generating
                     if not (self._chat_thread and self._chat_thread.isRunning()):
                         self.send_message()
                     return True
