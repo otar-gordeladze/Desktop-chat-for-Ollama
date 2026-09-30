@@ -1,9 +1,11 @@
 """Main desktop window controller."""
-import os
+
 from __future__ import annotations
 
-from pathlib import Path
 
+
+from pathlib import Path
+import os
 from PySide6.QtCore import QObject, QThread, Qt, Slot, QEvent
 from PySide6.QtGui import QAction, QKeySequence, QShortcut, QIcon
 from PySide6.QtWidgets import (
