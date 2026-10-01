@@ -1,9 +1,14 @@
 """Main desktop window controller."""
 
 from __future__ import annotations
-
 from pathlib import Path
+
+
 import os
+import tempfile
+import time
+
+
 from PySide6.QtCore import QObject, QThread, Qt, Slot, QEvent
 from PySide6.QtGui import QAction, QKeySequence, QShortcut, QIcon
 from PySide6.QtWidgets import (
@@ -508,12 +513,41 @@ class MainWindowController(QObject):
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched == self.message_edit and event.type() == QEvent.KeyPress:
-            if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            
+            # --- NEW: Intercept Ctrl+V for Images ---
+            if event.key() == Qt.Key_V and (event.modifiers() & Qt.ControlModifier or event.modifiers() & Qt.MetaModifier):
+                clipboard = QApplication.clipboard()
+                mime_data = clipboard.mimeData()
+                
+                # Check if the clipboard contains a screenshot/image
+                if mime_data.hasImage():
+                    image = clipboard.image()
+                    
+                    # Save the image to your system's temp folder
+                    temp_dir = tempfile.gettempdir()
+                    file_name = f"pasted_image_{int(time.time())}.png"
+                    temp_path = os.path.join(temp_dir, file_name)
+                    image.save(temp_path)
+                    
+                    # Automatically attach it to the UI using the chat manager
+                    try:
+                        new_attachments = self.chat_manager.import_attachments([Path(temp_path)])
+                        self.pending_attachments.extend(new_attachments)
+                        self._update_attachment_label()
+                    except Exception as exc:
+                        print(f"Failed to attach pasted image: {exc}")
+                    
+                    # Return True to block the default text-paste behavior
+                    return True 
+            
+            # --- EXISTING: Enter & Shift+Enter Logic ---
+            if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
                 if event.modifiers() & Qt.ShiftModifier:
                     return False
                 else:
-                    # Only allow Enter to send if not currently generating
+                    # Only allow Enter to send if we are NOT currently generating
                     if not (self._chat_thread and self._chat_thread.isRunning()):
                         self.send_message()
                     return True
+                    
         return super().eventFilter(watched, event)
