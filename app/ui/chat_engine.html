@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="assets/katex/katex.min.css">
+    <script src="assets/katex/katex.min.js"></script>
+    <script src="assets/katex/contrib/auto-render.min.js"></script>
+    <script src="assets/marked.min.js"></script>
+    
+    <style>
+        body {
+            font-family: "Segoe UI", Roboto, sans-serif;
+            background-color: #1e1e2e; 
+            color: #cdd6f4;
+            padding: 20px; 
+            margin: 0; 
+            font-size: 16px;
+        }
+        #chat-container {
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px;
+        }
+        .message { 
+            padding: 12px 18px; 
+            border-radius: 8px; 
+            max-width: 85%; 
+            word-wrap: break-word; 
+            line-height: 1.5; 
+        }
+        .user { 
+            background-color: #313244; 
+            align-self: flex-end; 
+        }
+        .assistant { 
+            background-color: transparent; 
+            align-self: flex-start; 
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container"></div>
+    <script>
+        const container = document.getElementById('chat-container');
+        let currentMessageDiv = null;
+
+        function clearChat() { container.innerHTML = ''; }
+
+        function addMessage(role, text) {
+            currentMessageDiv = document.createElement('div');
+            currentMessageDiv.className = `message ${role}`;
+            container.appendChild(currentMessageDiv);
+            if (text) updateCurrentMessage(text);
+        }
+
+        function updateCurrentMessage(text) {
+            if (!currentMessageDiv) return;
+            
+            // 1. Check if the user is currently at the bottom BEFORE the new words arrive
+            let isAtBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 80);
+            
+            // 2. Parse the Markdown and Math
+            currentMessageDiv.innerHTML = marked.parse(text);
+            renderMathInElement(currentMessageDiv, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\[", right: "\\]", display: true},
+                    {left: "\\(", right: "\\)", display: false}
+                ], throwOnError: false
+            });
+            
+            // 3. Only auto-scroll if they didn't scroll up manually to read earlier text
+            if (isAtBottom) {
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        }
+    </script>
+</body>
+</html>
