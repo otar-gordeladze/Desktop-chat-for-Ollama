@@ -7,8 +7,10 @@ from pathlib import Path
 import os
 import tempfile
 import time
+import json
 
-
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtCore import QObject, QThread, Qt, Slot, QEvent
 from PySide6.QtGui import QAction, QKeySequence, QShortcut, QIcon
 from PySide6.QtWidgets import (
@@ -89,10 +91,28 @@ class MainWindowController(QObject):
         self.send_button = self.window.findChild(QPushButton, "sendButton")
         self.attachment_label = self.window.findChild(QLabel, "attachmentLabel")
         self.status_label = self.window.findChild(QLabel, "statusLabel")
-        self.scroll_area = self.window.findChild(QScrollArea, "messageScrollArea")
-        container = self.window.findChild(QWidget, "messagesContainer")
-        self.messages_layout = container.layout()
-        assert isinstance(self.messages_layout, QVBoxLayout)
+
+        # Grab the old scroll area and figure out exactly where it lives in the UI
+        old_scroll = self.window.findChild(QScrollArea, "messageScrollArea")
+        parent_layout = old_scroll.parentWidget().layout()
+        
+        # Create the new WebEngine View
+        self.web_view = QWebEngineView(self.window)
+        
+        # --- NEW: Fix the Layout Proportions ---
+        from PySide6.QtWidgets import QSizePolicy
+        self.web_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.message_edit.setMaximumHeight(130)  
+        # ----------------------------------------
+        
+        self.web_view.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+        self.web_view.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+        template_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "chat_engine.html"))
+        self.web_view.setUrl(f"file:///{template_path}")
+        
+        # Swap the old scroll area with our new web engine inside the exact same layout space
+        parent_layout.replaceWidget(old_scroll, self.web_view)
+        old_scroll.hide()
 
         self._connect_signals()
         self._set_initial_sizes()
@@ -116,8 +136,11 @@ class MainWindowController(QObject):
             splitter.setSizes([270, 900])
 
     def show(self) -> None:
-        self.reload_chat_list(select_chat_id=self.chat_manager.ensure_initial_chat(self.settings.default_model).id)
         self.refresh_models()
+        # Wait for the web engine to boot before rendering messages
+        self.web_view.loadFinished.connect(
+            lambda: self.reload_chat_list(select_chat_id=self.chat_manager.ensure_initial_chat(self.settings.default_model).id)
+        )
         self.window.show()
 
     def reload_chat_list(self, select_chat_id: int | None = None) -> None:
@@ -330,8 +353,12 @@ class MainWindowController(QObject):
                 memory[-1]["images"] = self.ollama.encode_images(image_paths)
 
         assistant_message = self.chat_manager.add_assistant_placeholder(self.current_chat.id)
-        self._append_message_widget(user_message)
-        self._assistant_widget = self._append_message_widget(assistant_message)
+        
+        # Send text directly to WebEngine instead of old widgets
+        safe_user = json.dumps(user_message.content)
+        self.web_view.page().runJavaScript(f"addMessage('user', {safe_user});")
+        self.web_view.page().runJavaScript("addMessage('assistant', 'Thinking...');")
+        
         self._assistant_message = assistant_message
         self._stream_text = ""
 
@@ -367,37 +394,21 @@ class MainWindowController(QObject):
     @Slot(str)
     def _on_stream_chunk(self, chunk: str) -> None:
         self._stream_text += chunk
-        # Only update the visible widget if looking at the generating chat
         if self.current_chat and self.current_chat.id == self._generating_chat_id:
-            w = getattr(self, "_assistant_widget", None)
-            if w is not None:
-                try:
-                    sb = self.scroll_area.verticalScrollBar()
-                    is_at_bottom = sb.value() >= sb.maximum() - 15
-
-                    w.set_content(self._stream_text)
-                    
-                    if is_at_bottom:
-                        self._scroll_to_bottom()
-                        
-                    QApplication.processEvents()
-                except RuntimeError:
-                    self._assistant_widget = None
+            safe_text = json.dumps(self._stream_text)
+            self.web_view.page().runJavaScript(f"updateCurrentMessage({safe_text});")
 
     @Slot(str)
     def _on_stream_finished(self, final_text: str) -> None:
-        text = final_text or self._stream_text
+        # NEW: Catch empty responses from broken custom models
+        text = final_text or self._stream_text or "⚠️️ *Model returned an empty response. Try switching to a standard official model.*"
+        
         if self._assistant_message:
             self.storage.update_message_content(self._assistant_message.id, text)
             
         if self.current_chat and self.current_chat.id == self._generating_chat_id:
-            w = getattr(self, "_assistant_widget", None)
-            if w is not None:
-                try:
-                    w.set_content(text)
-                    w.enable_selection()
-                except RuntimeError:
-                    pass
+            safe_text = json.dumps(text)
+            self.web_view.page().runJavaScript(f"updateCurrentMessage({safe_text});")
             
         self.status_label.setText("Ready")
         self._set_generating(False)
@@ -411,13 +422,10 @@ class MainWindowController(QObject):
         failure_text = f"[Error: {error}]"
         if self._assistant_message:
             self.storage.update_message_content(self._assistant_message.id, failure_text)
+            
         if self.current_chat and self.current_chat.id == self._generating_chat_id:
-            if self._assistant_widget:
-                try:
-                    self._assistant_widget.set_content(failure_text)
-                    self._assistant_widget.enable_selection()
-                except RuntimeError:
-                    pass
+            safe_text = json.dumps(failure_text)
+            self.web_view.page().runJavaScript(f"updateCurrentMessage({safe_text});")
             
         self.status_label.setText("Request failed")
         self._set_generating(False)
@@ -446,15 +454,11 @@ class MainWindowController(QObject):
         self.settings_button.setEnabled(not generating)
 
     def _render_messages(self, messages: list[Message]) -> None:
-        while self.messages_layout.count() > 1:
-            item = self.messages_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        self.web_view.page().runJavaScript("clearChat();")
         for message in messages:
-            w = self._append_message_widget(message)
-            w.enable_selection()
-        self._scroll_to_bottom()
+            safe_text = json.dumps(message.content or "")
+            role = "user" if message.role == "user" else "assistant"
+            self.web_view.page().runJavaScript(f"addMessage('{role}', {safe_text});")
 
     def _append_message_widget(self, message: Message) -> MessageWidget:
         widget = MessageWidget(message, self.window)
@@ -482,9 +486,9 @@ class MainWindowController(QObject):
         QShortcut(QKeySequence.ZoomOut, self.window, self.zoom_out)
         QShortcut("Ctrl+0", self.window, self.reset_zoom)
         
-        # Intercept scroll wheel on the chat area
-        self._original_wheel_event = self.scroll_area.wheelEvent
-        self.scroll_area.wheelEvent = self._handle_scroll_wheel
+        # Intercept scroll wheel on the new web view
+        self._original_wheel_event = self.web_view.wheelEvent
+        self.web_view.wheelEvent = self._handle_scroll_wheel
 
     def _handle_scroll_wheel(self, event) -> None:
         if event.modifiers() == Qt.ControlModifier:
@@ -510,6 +514,10 @@ class MainWindowController(QObject):
     def _apply_zoom(self) -> None:
         from app.ui.theme import stylesheet
         self.window.setStyleSheet(stylesheet(self.settings.theme, self.current_font_size))
+        
+        # Calculate web zoom based on standard font size 14
+        zoom_multiplier = self.current_font_size / 14.0
+        self.web_view.setZoomFactor(zoom_multiplier)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched == self.message_edit and event.type() == QEvent.KeyPress:
